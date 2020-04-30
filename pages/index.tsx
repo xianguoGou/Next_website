@@ -1,7 +1,7 @@
 
 import axios from 'axios'
 import '../static/test.css'
-import { Button, Layout, Menu, Breadcrumb, Spin } from 'antd';
+import {Button, Layout, Menu, Breadcrumb, Spin } from 'antd';
 import {
   UserOutlined,
   LaptopOutlined,
@@ -11,6 +11,7 @@ import Link from 'next/link'
 import React, {useState} from 'react'
 const { SubMenu } = Menu;
 const { Header, Content, Sider } = Layout;
+import Map from '../components/Map'
 // setLoading = () => {
 //   console.log('load……:')
 // }
@@ -110,6 +111,7 @@ const Home = ({data}: any) => {
                 Click me!
               </Button>
               <div>{count}</div>
+              <Map name={'sss'}/>
               <style jsx>
                 {`
                     div{color:blue;}

@@ -1,0 +1,34 @@
+#allMap {
+  width: 800px;
+  height: 400px;
+}
+.marker {
+  position: absolute;
+  top: -20px;
+  right: -118px;
+  color: #fff;
+  padding: 4px 10px;
+  box-shadow: 1px 1px 1px rgba(10, 10, 10, 0.2);
+  white-space: nowrap;
+  font-size: 12px;
+  font-family: '';
+  background-color: #25a5f7;
+  border-radius: 3px;
+}
+.circle {
+  border-radius: 50%;
+  width: 84px;
+  height: 84px;
+  /* line-height: 20px; */
+  font-size: 12px;
+  display: flex;
+  text-align: center;
+  background-color: #25a5f7;
+  flex-direction: column;
+  justify-content: center;
+  color: #fff;
+  opacity: 0.8;
+}
+.circle-hover {
+  background-color: #f73325;
+}
