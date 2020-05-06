@@ -1,6 +1,6 @@
 #allMap {
-  width: 800px;
-  height: 400px;
+  width: 1000px;
+  height: 600px;
 }
 .marker {
   position: absolute;
@@ -12,23 +12,32 @@
   white-space: nowrap;
   font-size: 12px;
   font-family: '';
-  background-color: #25a5f7;
+  background-color: #389EF2;
   border-radius: 3px;
 }
 .circle {
   border-radius: 50%;
   width: 84px;
   height: 84px;
-  /* line-height: 20px; */
   font-size: 12px;
   display: flex;
   text-align: center;
-  background-color: #25a5f7;
+  background-color: #389EF2;
   flex-direction: column;
   justify-content: center;
   color: #fff;
   opacity: 0.8;
 }
 .circle-hover {
+  border-radius: 50%;
+  width: 84px;
+  height: 84px;
+  font-size: 12px;
+  display: flex;
+  text-align: center;
   background-color: #f73325;
+  flex-direction: column;
+  justify-content: center;
+  color: #fff;
+  opacity: 0.8;
 }

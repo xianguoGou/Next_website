@@ -12,14 +12,17 @@ import React, {useState} from 'react'
 const { SubMenu } = Menu;
 const { Header, Content, Sider } = Layout;
 import Map from '../components/Map'
-// setLoading = () => {
-//   console.log('load……:')
-// }
-const Home = ({data}: any) => {
+type Props = {
+  items: {
+    id: number,
+    img: string
+  }
+}
+const Home = ({ items }: Props) => {
   let isBool: boolean = true;
   console.log(isBool)
   const [ count , setCount ] = useState(0)
-  console.log('接口返回data数据:', data)
+  console.log('接口返回data数据:', items)
   return (
     <>
       <Layout>
@@ -111,7 +114,7 @@ const Home = ({data}: any) => {
                 Click me!
               </Button>
               <div>{count}</div>
-              <Map name={'sss'}/>
+              <Map name={'mapComponent'}/>
               <style jsx>
                 {`
                     div{color:blue;}
@@ -127,10 +130,10 @@ const Home = ({data}: any) => {
 }
 
 Home.getInitialProps = async () => {
-  const result = await axios('http://rap2.taobao.org:38080/app/mock/177412/rap/random/list/').then(res => {
-    return res.data
+  const items = await axios('http://rap2.taobao.org:38080/app/mock/177412/rap/random/list/').then(res => {
+    return res.data.list_body.list_product
   })
-  return { data: result }
+  return { items }
 }
 
 export default Home;
