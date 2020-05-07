@@ -19,8 +19,6 @@ type Props = {
   }
 }
 const Home = ({ items }: Props) => {
-  let isBool: boolean = true;
-  console.log(isBool)
   const [ count , setCount ] = useState(0)
   console.log('接口返回data数据:', items)
   return (

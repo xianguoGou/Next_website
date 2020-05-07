@@ -1,13 +1,11 @@
 import React, { Component } from 'react';
 import './map.css'
 import areaData from '../../utils/MapData/area_data.json'
-// import LabelsData from '../../utils/MapData/demo_data'
 declare const AMap: any
 declare const window: Window & { initMap: any }
 export interface MState {
   latitude: number
   longitude: number
-  CityCode?: string
   areaList: object
   [propName: string]: any
   // [propName: string]: string | number
@@ -19,25 +17,18 @@ class Map extends Component<MProps, MState> {
   map: any;
   marker: any;
   polygon: any;
-  AreaMarker: any;
-  markerTwo: any;
-  markerLevelOneList: any;
-  markerLevelTwoList: any;
+  AreaMarker: any[];
+  markerLevelOneList: any[];
   constructor(props) {
     super(props)
     this.state = {
-      latitude: 104.07,
-      longitude: 30.67,
-      CityCode: '510100',
+      latitude: areaData[1].latitude,
+      longitude: areaData[1].longitude,
       areaList: areaData[1]
     }
     this.map = null
-    this.marker = null
     this.polygon = null
-    this.AreaMarker = null
-    this.markerTwo = null
-    this.markerLevelOneList = []
-    this.markerLevelTwoList = []
+    this.AreaMarker = []
   }
   render() {
     return (
@@ -51,20 +42,17 @@ class Map extends Component<MProps, MState> {
     this.initMap()
   }
   initMap = () => {
+    console.log(this.state.areaList)
     // 初始化地图
     window.initMap = () => {
       this.map = new AMap.Map('allMap', {
-        center: [this.state.latitude, this.state.longitude],
-        zoom: 12,
+        center: [this.state.longitude, this.state.latitude],
+        zoom: 11,
         showLabel: false,
         expandZoomRange: true,
         pitch: 60,
         mapStyle: 'amap://styles/whiteblue' // 设置地图style
         // viewMode: '2D'
-      })
-      // 添加监听: 当前地图缩放级别
-      AMap.event.addListener(this.map, 'zoomend', () => {
-        // console.log('当前地图缩放级别：', this.map.getZoom())
       })
       this.renderMap(this.map)
     }
@@ -75,29 +63,35 @@ class Map extends Component<MProps, MState> {
     document.head.appendChild(jsapi);
   }
   renderMap(map) {
-    // 获取地理数据
+    // 获取区域数据
     const { areaList } = this.state
-    this.AreaMarker = Object.values(areaList['children'])
-    // const markers = []
+    console.log(areaList)
+    this.AreaMarker = areaList['children']
     this.markerLevelOneList = []
     this.AreaMarker.forEach((v, i) => {
-      // console.log(Object.values(v.children))
       const centerArr = []
       centerArr.push(v.longitude, v.latitude)
       v.extData = {
         index: Number(i)
       }
-      // 创建Marker点
-      const marker = this.createMarker(centerArr, v)
-      this.markerLevelOneList.push(marker)
+      // 创建标记点
+      this.marker = this.createMarker(centerArr, v)
+      this.marker.subMarkers = []
+      if(v.children && v.children.length) {
+        v.children.forEach((list, i) => {
+          this.marker.subMarkers.push(this.createMarker([list.longitude, list.latitude], list))
+          this.marker.subMarkers[i].on('click', this._onClickTwo.bind(this, list))
+          this.marker.subMarkers[i].on('mouseover', this._onMouseoverTwo.bind(this, list))
+          this.marker.subMarkers[i].on('mouseout', this._onMouseoutTwo.bind(this, list))
+        })
+      }
+      this.map.remove(this.marker.subMarkers)
+      this.markerLevelOneList.push(this.marker)
       // 添加监听事件
       this.marker.on('click', this._onClick.bind(this, i))
       this.marker.on('mouseover', this._onMouseover.bind(this, i))
       this.marker.on('mouseout', this._onMouseout.bind(this, i))
-      // console.log(v)
     })
-    // console.log('this.markerLevelOneList', this.markerLevelOneList)
-    console.log(map)
     // 在视野中显示所有的点
     // map.setFitView();
     AMap.event.addListener(map, 'zoomend', this._onZoomEnd.bind(this));
@@ -114,31 +108,22 @@ class Map extends Component<MProps, MState> {
     markerContent.appendChild(markerSpan1)
     markerContent.appendChild(markerSpan2)
 
-    this.marker = new AMap.Marker({
+    const markerPoint = new AMap.Marker({
       position: [position[0], position[1]],
       offset: new AMap.Pixel(-10,-34),
       content: markerContent,
       zIndex: 1000
     })
-    this.marker.subMarkers = []
-    this.marker.setMap(this.map)
-    const subMarkers = Object.values(item.children)
-    console.log(subMarkers)
-    if (subMarkers.length) {
-      for(var i = 0; i < subMarkers.length; i++) {
-        // this.marker.subMarkers.push()
-      }
-    }
-    return this.marker
+    markerPoint.setMap(this.map)
+    return markerPoint
   }
   createLine(line) {
     let LineArr = line.border.split(';')
     LineArr = LineArr.map(v => v.split(','))
-    // console.log(LineArr)
     this.polygon = new AMap.Polygon({
         path: LineArr,
         fillColor: '#1791fc',
-        fillOpacity: 0.4,       // 设置线覆盖物路径
+        fillOpacity: 0.1,       // 设置线覆盖物路径
         strokeColor: '#3366FF', // 线颜色
         strokeWeight: 2,        // 线宽
         strokeStyle: 'solid',   // 线样式
@@ -146,98 +131,77 @@ class Map extends Component<MProps, MState> {
     });
     this.map.add(this.polygon);
   }
-
+  // (一级区域)点击事件
   _onClick(i, e) {
-    console.log(e)
-    console.log(this.AreaMarker[i])
-    this.markerTwo = Object.values(this.AreaMarker[i].children)
-    const { w } = e.target
-    const div = w.content
-    div.className = 'circle'
-    this.polygon.hide(this.AreaMarker)
-    this.removeMarkerLevelOne()
-    if (this.markerTwo.length) {
-      // this.map.setFitView(this.markerTwo);
-      this.markerLevelTwoList = []
-      this.markerTwo.forEach((v, n) => {
-        const centerArr = []
-        centerArr.push(v.longitude, v.latitude)
-        const marker = this.createMarker(centerArr, v)
-        this.markerLevelTwoList.push(marker)
-        // 二级节点添加监听
-        this.marker.on('click', this._onClickTwo.bind(this, n))
-        this.marker.on('mouseover', this._onMouseoverTwo.bind(this, n))
-        this.marker.on('mouseout', this._onMouseoutTwo.bind(this, n))
-      })
-      console.log(this.markerLevelTwoList)
-    }
-    this.map.setZoomAndCenter(14, [this.AreaMarker[i].longitude, this.AreaMarker[i].latitude])
+    console.log(i, e)
+    // 设置地图缩放级别和中心点
+    this.map.setZoomAndCenter(14,
+      [this.AreaMarker[i].longitude,
+      this.AreaMarker[i].latitude]
+    )
   }
+  // (一级区域)覆盖事件
   _onMouseover(i, e) {
-    // 获取区域边界线
+    // 绘制区域边界
     this.createLine(this.AreaMarker[i])
     const { w } = e.target
     const div = w.content
-    // div.style.backgroundColor="#f73325"
     div.className = 'circle-hover'
-    console.log('鼠标移入事件', e.target, div)
   }
+  // (一级区域)移除事件
   _onMouseout(i, e) {
-    console.log(e)
     const { w } = e.target
     const div = w.content
-    // div.style.backgroundColor=""
     div.className = 'circle'
     this.polygon.hide(this.AreaMarker[i])
   }
-  _onClickTwo(i, e) {
-    console.log(i, e)
+  // (二级区域)点击事件
+  _onClickTwo(list, e) {
+    console.log(list, e)
   }
-  _onMouseoverTwo(i, e) {
-    console.log(i, e)
-    console.log(this.markerTwo[i])
+  // (二级区域)覆盖事件
+  _onMouseoverTwo(list, e) {
+    console.log(list, e)
     // 获取区域边界线
-    this.createLine(this.markerTwo[i])
+    this.createLine(list)
     const { w } = e.target
     const div = w.content
     div.className = 'circle-hover'
   }
-  _onMouseoutTwo(i, e) {
+  // (二级区域)移除事件
+  _onMouseoutTwo(list, e) {
     const { w } = e.target
     const div = w.content
     div.className = 'circle'
-    this.polygon.hide(this.markerTwo[i])
+    this.polygon.hide(list)
   }
+  // 地图缩放事件
   _onZoomEnd() {
-    // this.polygon.hide(this.AreaMarker)
+    this.polygon.hide(this.markerLevelOneList)
     const zoomLevel = this.map.getZoom()
-    if (zoomLevel <= 8) {
+    if (zoomLevel < 9) {
+      // 隐藏一级区域
       this.removeMarkerLevelOne()
-    } else if (zoomLevel > 8 && zoomLevel <= 11) {
+    } else if (zoomLevel >= 9 && zoomLevel < 12) {
       // 显示一级区域
-      this.removeMarkerLevelTwo()
       this.map.add(this.markerLevelOneList)
-      // this.map.add(this.markerLevelTwoList)
-    } else if (zoomLevel > 11 && zoomLevel <= 13) {
-      this.map.add(this.markerLevelTwoList)
-      console.log('10---13')
+      // 隐藏二级区域
+      for (var i = 0; i < this.markerLevelOneList.length; i++) {
+        this.map.remove(this.markerLevelOneList[i].subMarkers)
+      }
+    } else if (zoomLevel >= 12 && zoomLevel < 15) {
+      // 隐藏一级区域
+      this.removeMarkerLevelOne()
+      // 显示二级区域
+      for (var i = 0; i < this.markerLevelOneList.length; i++) {
+        this.map.add(this.markerLevelOneList[i].subMarkers)
+      }
     }
-    // else {
-    //   this.map.add(this.markerLevelOneList)
-    // }
-    console.log('地图缩放', zoomLevel)
-  }
-  _onMousemove() {
-    // console.log(e)
+    console.log('地图缩放级别', zoomLevel)
   }
   removeMarkerLevelOne() {
     for(var i = 0; i < this.markerLevelOneList.length; i++) {
       this.map.remove(this.markerLevelOneList[i])
-    }
-  }
-  removeMarkerLevelTwo() {
-    for(var i = 0; i < this.markerLevelTwoList.length; i++) {
-      this.map.remove(this.markerLevelTwoList[i])
     }
   }
 }
