@@ -1,12 +1,7 @@
 
 import axios from 'axios'
 import '../static/test.css'
-import {Button, Layout, Menu, Breadcrumb, Spin } from 'antd';
-import {
-  UserOutlined,
-  LaptopOutlined,
-  NotificationOutlined
-} from '@ant-design/icons';
+import {Button, Layout, Menu, Breadcrumb, Spin, Icon } from 'antd';
 import Link from 'next/link'
 import React, {useState} from 'react'
 const { SubMenu } = Menu;
@@ -49,7 +44,7 @@ const Home = ({ items }: Props) => {
                 key="sub1"
                 title={
                   <span>
-                    <UserOutlined />
+                    <Icon type="star" theme="filled" />
                     subnav 1
                   </span>
                 }
@@ -63,7 +58,7 @@ const Home = ({ items }: Props) => {
                 key="sub2"
                 title={
                   <span>
-                    <LaptopOutlined />
+                    <Icon type="star" theme="filled" />
                     subnav 2
                   </span>
                 }
@@ -77,7 +72,7 @@ const Home = ({ items }: Props) => {
                 key="sub3"
                 title={
                   <span>
-                    <NotificationOutlined />
+                    <Icon type="star" theme="filled" />
                     subnav 3
                   </span>
                 }
@@ -112,7 +107,7 @@ const Home = ({ items }: Props) => {
                 Click me!
               </Button>
               <div>{count}</div>
-              <Map name={'mapComponent'}/>
+              <Map name={'mapComponent'} />
               <style jsx>
                 {`
                     div{color:blue;}
