@@ -19,6 +19,8 @@ class Map extends Component<MProps, MState> {
   polygon: any;
   AreaMarker: any[];
   markerLevelOneList: any[];
+  markerLevelTwoList: any[];
+  markerLevelThreeList: any[];
   constructor(props) {
     super(props)
     this.state = {
@@ -48,11 +50,10 @@ class Map extends Component<MProps, MState> {
       this.map = new AMap.Map('allMap', {
         center: [this.state.longitude, this.state.latitude],
         zoom: 11,
-        showLabel: false,
+        showLabel: true,
         expandZoomRange: true,
         pitch: 60,
-        mapStyle: 'amap://styles/whiteblue' // 设置地图style
-        // viewMode: '2D'
+        // mapStyle: 'amap://styles/whitesmoke' // 设置图层样式
       })
       this.renderMap(this.map)
     }
@@ -67,7 +68,9 @@ class Map extends Component<MProps, MState> {
     const { areaList } = this.state
     // console.log(areaList)
     this.AreaMarker = areaList['children']
-    this.markerLevelOneList = []
+    this.markerLevelOneList = [] // 一级marker点
+    this.markerLevelTwoList = [] // 二级marker点
+    this.markerLevelThreeList = [] // 三级marker点
     this.AreaMarker.forEach((v, i) => {
       const centerArr = []
       centerArr.push(v.longitude, v.latitude)
@@ -75,11 +78,9 @@ class Map extends Component<MProps, MState> {
         index: Number(i)
       }
       // 创建标记点
-      this.marker = this.createMarker(centerArr, v, 'circle')
-      this.marker.subMarkers = []
-      this.marker.nextMarkers = []
+      const markerOne = this.createMarker(centerArr, v, 'circle')
       if(v.children && v.children.length) {
-        v.children.forEach((list, i) => {
+        v.children.forEach((list) => {
           list.children = [
             {
               "id": 3011053445241,
@@ -98,28 +99,32 @@ class Map extends Component<MProps, MState> {
               "unit_price": 17716
             }
           ]
-          this.marker.subMarkers.push(this.createMarker([list.longitude, list.latitude], list, 'circle'))
-          // console.log(list)
           if (list.children && list.children.length) {
-            list.children.forEach((item, m) => {
-              this.marker.nextMarkers.push(this.createMarker([item.longitude, item.latitude], item, 'rect'))
-              this.marker.nextMarkers[m].on('click', this._onClickThree.bind(this, item))
-              this.marker.nextMarkers[m].on('mouseover', this._onMouseoverThree.bind(this, item))
-              this.marker.nextMarkers[m].on('mouseout', this._onMouseoutThree.bind(this, item))
+            list.children.forEach((item) => {
+              // this.marker.nextMarkers.push(this.createMarker([item.longitude, item.latitude], item, 'rect'))
+              const markerThree = this.createMarker([item.longitude, item.latitude], item, 'rect')
+              this.markerLevelThreeList.push(markerThree)
+              this.map.remove(markerThree)
+              markerThree.on('click', this._onClickThree)
+              markerThree.on('mouseover', this._onMouseoverThree.bind(this, item))
+              markerThree.on('mouseout', this._onMouseoutThree.bind(this, item))
             })
           }
-          this.marker.subMarkers[i].on('click', this._onClickTwo.bind(this, list))
-          this.marker.subMarkers[i].on('mouseover', this._onMouseoverTwo.bind(this, list))
-          this.marker.subMarkers[i].on('mouseout', this._onMouseoutTwo.bind(this, list))
+          const markerTwo = this.createMarker([list.longitude, list.latitude], list, 'circle')
+          this.markerLevelTwoList.push(markerTwo)
+          this.map.remove(markerTwo)
+          markerTwo.on('click', this._onClickTwo.bind(this, list))
+          markerTwo.on('mouseover', this._onMouseoverTwo.bind(this, list))
+          markerTwo.on('mouseout', this._onMouseoutTwo.bind(this, list))
         })
       }
-      this.map.remove(this.marker.subMarkers)
-      this.map.remove(this.marker.nextMarkers)
-      this.markerLevelOneList.push(this.marker)
+      // this.map.remove(this.marker.nextMarkers)
+      // this.map.remove(this.marker.subMarkers)
+      this.markerLevelOneList.push(markerOne)
       // 添加监听事件
-      this.marker.on('click', this._onClick.bind(this, i))
-      this.marker.on('mouseover', this._onMouseover.bind(this, i))
-      this.marker.on('mouseout', this._onMouseout.bind(this, i))
+      markerOne.on('click', this._onClick.bind(this, i))
+      markerOne.on('mouseover', this._onMouseover.bind(this, i))
+      markerOne.on('mouseout', this._onMouseout.bind(this, i))
     })
     // 在视野中显示所有的点
     // map.setFitView();
@@ -223,63 +228,44 @@ class Map extends Component<MProps, MState> {
   // (三级区域)覆盖事件
   _onMouseoverThree(item, e) {
     console.log(item, e)
-    // 获取区域边界线
-    this.createLine(item)
     const { w } = e.target
     const div = w.content
     div.className = 'rect-hover'
   }
   // (三级区域)移除事件
   _onMouseoutThree(item, e) {
+    console.log(item)
     const { w } = e.target
     const div = w.content
-    div.className = 'circle'
-    this.polygon.hide(item)
+    div.className = 'rect'
   }
   // 地图缩放事件
   _onZoomEnd() {
-    // console.log(this.markerLevelOneList)
-    if (this.markerLevelOneList.length) {
-      this.polygon.hide(this.markerLevelOneList)
-    }
+    // console.log(this.markerLevelTwoList)
+    this.polygon.hide(this.markerLevelOneList)
     const zoomLevel = this.map.getZoom()
-    if (zoomLevel < 9) {
+    if (zoomLevel <= 9) {
       // 隐藏一级区域
-      this.removeMarkerLevelOne()
-    } else if (zoomLevel >= 9 && zoomLevel < 12) {
+      this.map.remove(this.markerLevelOneList)
+    } else if (zoomLevel > 9 && zoomLevel <= 12) {
       // 显示一级区域
       this.map.add(this.markerLevelOneList)
       // 隐藏二级区域
-      for (var i = 0; i < this.markerLevelOneList.length; i++) {
-        this.map.remove(this.markerLevelOneList[i].subMarkers)
-      }
-    } else if (zoomLevel >= 12 && zoomLevel < 15) {
+      this.map.remove(this.markerLevelTwoList)
+    } else if (zoomLevel > 12 && zoomLevel < 15) {
       // 隐藏一级区域
-      this.removeMarkerLevelOne()
+      this.map.remove(this.markerLevelOneList)
       // 显示二级区域
-      for (var i = 0; i < this.markerLevelOneList.length; i++) {
-        this.map.add(this.markerLevelOneList[i].subMarkers)
-      }
+      this.map.add(this.markerLevelTwoList)
       // 隐藏三级区域
-      for (var i = 0; i < this.markerLevelOneList.length; i++) {
-        this.map.remove(this.markerLevelOneList[i].nextMarkers)
-      }
+      this.map.remove(this.markerLevelThreeList)
     } else if (zoomLevel >= 16) {
       // 隐藏二级区域
-      for (var i = 0; i < this.markerLevelOneList.length; i++) {
-        this.map.remove(this.markerLevelOneList[i].subMarkers)
-      }
+      this.map.remove(this.markerLevelTwoList)
       // 显示三级区域
-      for (var i = 0; i < this.markerLevelOneList.length; i++) {
-        this.map.add(this.markerLevelOneList[i].nextMarkers)
-      }
+      this.map.add(this.markerLevelThreeList)
     }
     console.log('地图缩放级别', zoomLevel)
-  }
-  removeMarkerLevelOne() {
-    for(var i = 0; i < this.markerLevelOneList.length; i++) {
-      this.map.remove(this.markerLevelOneList[i])
-    }
   }
 }
 
