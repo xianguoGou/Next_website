@@ -21,6 +21,7 @@ class Map extends Component<MProps, MState> {
   markerLevelOneList: any[];
   markerLevelTwoList: any[];
   markerLevelThreeList: any[];
+  isLine: boolean = false;
   constructor(props) {
     super(props)
     this.state = {
@@ -127,7 +128,7 @@ class Map extends Component<MProps, MState> {
       markerOne.on('mouseout', this._onMouseout.bind(this, i))
     })
     // 在视野中显示所有的点
-    // map.setFitView();
+    map.setFitView();
     AMap.event.addListener(map, 'zoomend', this._onZoomEnd.bind(this));
   }
   createMarker(position, item, type) {
@@ -152,6 +153,7 @@ class Map extends Component<MProps, MState> {
     return markerPoint
   }
   createLine(line) {
+    this.isLine = true
     let LineArr = line.border.split(';')
     LineArr = LineArr.map(v => v.split(','))
     this.polygon = new AMap.Polygon({
@@ -241,8 +243,9 @@ class Map extends Component<MProps, MState> {
   }
   // 地图缩放事件
   _onZoomEnd() {
-    // console.log(this.markerLevelTwoList)
-    this.polygon.hide(this.markerLevelOneList)
+    if (this.isLine) {
+      this.polygon.hide(this.markerLevelOneList)
+    }
     const zoomLevel = this.map.getZoom()
     if (zoomLevel <= 9) {
       // 隐藏一级区域
