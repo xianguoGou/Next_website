@@ -4,8 +4,6 @@ import areaData from '../../utils/MapData/area_data.json'
 declare const AMap: any
 declare const window: Window & { initMap: any }
 export interface MState {
-  latitude: number
-  longitude: number
   areaList: object
   [propName: string]: any
   // [propName: string]: string | number
@@ -25,8 +23,6 @@ class Map extends Component<MProps, MState> {
   constructor(props) {
     super(props)
     this.state = {
-      latitude: areaData[1].latitude,
-      longitude: areaData[1].longitude,
       areaList: areaData[1]
     }
     this.map = null
@@ -42,21 +38,24 @@ class Map extends Component<MProps, MState> {
     );
   }
   componentDidMount() {
-    this.initMap()
+    console.log(areaData)
+    // this.getCurrentCity()
+    // 获取当前城市： areaData[0]-成都 | areaData[1]-重庆
+    this.initMap(areaData[0])
   }
-  initMap = () => {
-    console.log(this.state.areaList)
+  initMap = (city) => {
     // 初始化地图
     window.initMap = () => {
       this.map = new AMap.Map('allMap', {
-        center: [this.state.longitude, this.state.latitude],
-        zoom: 11,
-        showLabel: true,
-        expandZoomRange: true,
-        pitch: 60,
-        // mapStyle: 'amap://styles/whitesmoke' // 设置图层样式
+        resizeEnable: true // 是否监控地图容器尺寸变化
       })
-      this.renderMap(this.map)
+      // 根据城市的名字，进行地址解析，拿到我们所在城市的经纬度
+      this.map.setCity(city.name, position => {
+        if (position) {
+          this.map.setZoomAndCenter(10, position);
+        }
+      })
+      this.renderMap(city['children'])
     }
     var url = 'https://webapi.amap.com/maps?v=1.4.15&key=ab2b5d6ec30d0474e6646385abb483bc&callback=initMap';
     var jsapi = document.createElement('script');
@@ -64,93 +63,87 @@ class Map extends Component<MProps, MState> {
     jsapi.src = url;
     document.head.appendChild(jsapi);
   }
-  renderMap(map) {
-    // 获取区域数据
-    const { areaList } = this.state
-    // console.log(areaList)
-    this.AreaMarker = areaList['children']
-    this.markerLevelOneList = [] // 一级marker点
-    this.markerLevelTwoList = [] // 二级marker点
-    this.markerLevelThreeList = [] // 三级marker点
+  renderMap(city) {
+    // 获取当前地图的缩放级别和中心点
+    const parmList = this.getZoomAndCenter()
+    console.log('初始化数据', parmList)
+    // 添加覆盖物
+    this.renderOverlays(city, parmList.type, parmList.nextZoom)
+    // 根据当前的地图的缩放级别，来决定当前渲染什么形状的覆盖物
+    // AMap.event.addListener(this.map, 'zoomend', this._onZoomEnd.bind(this))
+    this.map.on('movestart', this.mapMovestart.bind(this));
+    this.map.on('mapmove', this.mapMove.bind(this));
+    this.map.on('moveend', () => {
+      const param = this.getZoomAndCenter()
+      console.log('地图移动结束param', param)
+      // 调接口
+    });
+    // 在视野中显示所有的点
+    // this.map.setFitView();
+  }
+  renderOverlays = (city, type, nextZoom) => {
+    // 初始化区域数据-调接口
+    this.AreaMarker = city
+    this.markerLevelOneList = []
     this.AreaMarker.forEach((v, i) => {
-      const centerArr = []
-      centerArr.push(v.longitude, v.latitude)
       v.extData = {
         index: Number(i)
       }
-      // 创建标记点
-      const markerOne = this.createMarker(centerArr, v, 'circle')
-      if(v.children && v.children.length) {
-        v.children.forEach((list) => {
-          list.children = [
-            {
-              "id": 3011053445241,
-              "name": "新和名座",
-              "longitude": 104.029758,
-              "latitude": 30.693769,
-              "count": 28,
-              "unit_price": 14122
-            },
-            {
-              "id": 3011054758502,
-              "name": "西城天下",
-              "longitude": 104.020531,
-              "latitude": 30.699832,
-              "count": 58,
-              "unit_price": 17716
-            }
-          ]
-          if (list.children && list.children.length) {
-            list.children.forEach((item) => {
-              // this.marker.nextMarkers.push(this.createMarker([item.longitude, item.latitude], item, 'rect'))
-              const markerThree = this.createMarker([item.longitude, item.latitude], item, 'rect')
-              this.markerLevelThreeList.push(markerThree)
-              this.map.remove(markerThree)
-              markerThree.on('click', this._onClickThree)
-              markerThree.on('mouseover', this._onMouseoverThree.bind(this, item))
-              markerThree.on('mouseout', this._onMouseoutThree.bind(this, item))
-            })
-          }
-          const markerTwo = this.createMarker([list.longitude, list.latitude], list, 'circle')
-          this.markerLevelTwoList.push(markerTwo)
-          this.map.remove(markerTwo)
-          markerTwo.on('click', this._onClickTwo.bind(this, list))
-          markerTwo.on('mouseover', this._onMouseoverTwo.bind(this, list))
-          markerTwo.on('mouseout', this._onMouseoutTwo.bind(this, list))
-        })
+      if (type === 'circle') {
+        this.renderCircleOverlay(v, type, nextZoom)
+      } else {
+        this.renderRectOverlay(v, type)
       }
-      // this.map.remove(this.marker.nextMarkers)
-      // this.map.remove(this.marker.subMarkers)
-      this.markerLevelOneList.push(markerOne)
-      // 添加监听事件
-      markerOne.on('click', this._onClick.bind(this, i))
-      markerOne.on('mouseover', this._onMouseover.bind(this, i))
-      markerOne.on('mouseout', this._onMouseout.bind(this, i))
     })
-    // 在视野中显示所有的点
-    map.setFitView();
-    AMap.event.addListener(map, 'zoomend', this._onZoomEnd.bind(this));
   }
-  createMarker(position, item, type) {
+  renderCircleOverlay = (item, type, nextZoom) => {
+    const {longitude, latitude} = item
     // 自定义点标记内容
-    var markerContent = document.createElement("div")
+    const markerContent = document.createElement("div")
     markerContent.className = type
     // 点标记中的文本
-    var markerSpan1 = document.createElement("span")
+    const markerSpan1 = document.createElement("span")
     markerSpan1.innerHTML = item.name
-    var markerSpan2 = document.createElement("span")
+    const markerSpan2 = document.createElement("span")
     markerSpan2.innerHTML = item.count
     markerContent.appendChild(markerSpan1)
     markerContent.appendChild(markerSpan2)
-
     const markerPoint = new AMap.Marker({
-      position: [position[0], position[1]],
+      position: [longitude, latitude],
       offset: new AMap.Pixel(-10,-34),
       content: markerContent,
       zIndex: 1000
     })
-    markerPoint.setMap(this.map)
-    return markerPoint
+    this.markerLevelOneList.push(markerPoint)
+    // 添加一级覆盖物监听事件
+    markerPoint.on('click', this._onClick.bind(this, markerPoint, item, nextZoom, type))
+    markerPoint.on('mouseover', this._onMouseover.bind(this, item))
+    markerPoint.on('mouseout', this._onMouseout.bind(this, item))
+    this.map.add(markerPoint)
+  }
+  renderRectOverlay = (item, type) => {
+    const {longitude, latitude} = item
+    // 自定义点标记内容
+    const markerContent = document.createElement("div")
+    markerContent.className = type
+    // 点标记中的文本
+    const markerSpan1 = document.createElement("span")
+    markerSpan1.innerHTML = item.name
+    const markerSpan2 = document.createElement("span")
+    markerSpan2.innerHTML = item.count
+    markerContent.appendChild(markerSpan1)
+    markerContent.appendChild(markerSpan2)
+    const markerPoint = new AMap.Marker({
+      position: [longitude, latitude],
+      offset: new AMap.Pixel(-10,-34),
+      content: markerContent,
+      zIndex: 1000
+    })
+    markerPoint.on('click', this._onClickThree.bind(this, item))
+    markerPoint.on('mouseover', this._onMouseoverThree.bind(this, item))
+    markerPoint.on('mouseout', this._onMouseoutThree.bind(this, item))
+    // console.log(item)
+    this.map.add(markerPoint)
   }
   createLine(line) {
     this.isLine = true
@@ -168,107 +161,117 @@ class Map extends Component<MProps, MState> {
     this.map.add(this.polygon);
   }
   // (一级区域)点击事件
-  _onClick(i, e) {
-    console.log(i, e)
-    // 设置地图缩放级别和中心点
-    this.map.setZoomAndCenter(14,
-      [this.AreaMarker[i].longitude,
-      this.AreaMarker[i].latitude]
-    )
-    const { w } = e.target
-    const div = w.content
-    div.className = 'circle'
+  _onClick(point, item, nextZoom, type) {
+    // 获取地图中心点
+    // var currentCenter = this.map.getCenter();
+    // console.log(currentCenter)
+    // console.log(point, item, e, nextZoom)
+    // 把之前的一级覆盖物干掉
+    this.map.remove(point)
+    this.polygon.hide(item)
+    // 重新设置中心点和缩放级别
+    this.map.setZoomAndCenter(nextZoom, [item.longitude, item.latitude]);
+    // const { w } = e.target
+    // const div = w.content
+    // div.className = 'circle'
+    console.log(item)
+    if (item['children']) {
+      this.renderOverlays(item['children'], type, nextZoom)
+    } else {
+      item.children = [
+        {
+          "id": 3011053445241,
+          "name": "新和名座",
+          "longitude": 104.029758,
+          "latitude": 30.693769,
+          "count": 28,
+          "unit_price": 14122
+        },
+        {
+          "id": 3011054758502,
+          "name": "西城天下",
+          "longitude": 104.020531,
+          "latitude": 30.699832,
+          "count": 58,
+          "unit_price": 17716
+        }
+      ]
+      this.renderOverlays(item['children'], type, nextZoom)
+      console.log('no')
+    }
   }
   // (一级区域)覆盖事件
-  _onMouseover(i, e) {
+  _onMouseover(item, e) {
+    // console.log(item, nextZoom, e)
     // 绘制区域边界
-    this.createLine(this.AreaMarker[i])
+    this.createLine(item)
     const { w } = e.target
     const div = w.content
     div.className = 'circle-hover'
   }
   // (一级区域)移除事件
-  _onMouseout(i, e) {
+  _onMouseout(item, e) {
     const { w } = e.target
     const div = w.content
     div.className = 'circle'
-    this.polygon.hide(this.AreaMarker[i])
+    this.polygon.hide(item)
   }
-  // (二级区域)点击事件
-  _onClickTwo(list, e) {
-    this.map.setZoomAndCenter(16,
-      [
-        list.longitude,
-        list.latitude
-      ]
-    )
-    console.log(list, e)
-    const { w } = e.target
-    const div = w.content
-    div.className = 'circle'
-  }
-  // (二级区域)覆盖事件
-  _onMouseoverTwo(list, e) {
-    console.log(list, e)
-    // 获取区域边界线
-    this.createLine(list)
-    const { w } = e.target
-    const div = w.content
-    div.className = 'circle-hover'
-  }
-  // (二级区域)移除事件
-  _onMouseoutTwo(list, e) {
-    const { w } = e.target
-    const div = w.content
-    div.className = 'circle'
-    this.polygon.hide(list)
-  }
-  // (三级区域)点击事件
   _onClickThree(item, e) {
     console.log(item, e)
   }
-  // (三级区域)覆盖事件
   _onMouseoverThree(item, e) {
-    console.log(item, e)
     const { w } = e.target
     const div = w.content
     div.className = 'rect-hover'
+    console.log(item, e)
   }
-  // (三级区域)移除事件
   _onMouseoutThree(item, e) {
-    console.log(item)
     const { w } = e.target
     const div = w.content
     div.className = 'rect'
+    console.log(item, e)
   }
-  // 地图缩放事件
-  _onZoomEnd() {
+  mapMovestart() {
+    console.log('地图移动开始')
+  }
+  mapMove() {
+    console.log('地图正在移动')
+  }
+  mapMoveend() {
+    const param = this.getZoomAndCenter()
+    // this.renderOverlays(city, type, nextZoom)
+    console.log('地图移动结束', param)
+    return param
+  }
+  // 获取地图缩放级别和地图中心点
+  getZoomAndCenter = () => {
     if (this.isLine) {
       this.polygon.hide(this.markerLevelOneList)
     }
-    const zoomLevel = this.map.getZoom()
-    if (zoomLevel <= 9) {
-      // 隐藏一级区域
-      this.map.remove(this.markerLevelOneList)
-    } else if (zoomLevel > 9 && zoomLevel <= 12) {
-      // 显示一级区域
-      this.map.add(this.markerLevelOneList)
-      // 隐藏二级区域
-      this.map.remove(this.markerLevelTwoList)
-    } else if (zoomLevel > 12 && zoomLevel < 15) {
-      // 隐藏一级区域
-      this.map.remove(this.markerLevelOneList)
-      // 显示二级区域
-      this.map.add(this.markerLevelTwoList)
-      // 隐藏三级区域
-      this.map.remove(this.markerLevelThreeList)
-    } else if (zoomLevel >= 16) {
-      // 隐藏二级区域
-      this.map.remove(this.markerLevelTwoList)
-      // 显示三级区域
-      this.map.add(this.markerLevelThreeList)
+    let type = 'circle' // 默认渲染圆形覆盖物
+    let nextZoom = 10
+    let zoom = this.map.getZoom()
+    let {lng, lat} = this.map.getCenter()
+    let center = [lng, lat]
+    let {northeast} = this.map.getBounds()
+    let disBetweenPoint = [northeast.lng, northeast.lat]
+    // 返回地图中心点 到 地图右上角点之间的地面距离，单位：米
+    let distance = AMap.GeometryUtil.distance(center, disBetweenPoint);
+    if (zoom <= 9) {
+      // // 隐藏一级区域
+      // this.map.remove(this.markerLevelOneList)
+    } else if (zoom > 9 && zoom < 12) {
+      type = 'circle'
+      nextZoom = 13
+    } else if (zoom > 12 && zoom < 15) {
+      // // 隐藏一级区域
+      type = 'circle'
+      nextZoom = 16
+    } else if (zoom > 15) {
+      type = 'rect'
     }
-    console.log('地图缩放级别', zoomLevel)
+    console.log('地图缩放级别', zoom)
+    return {type, nextZoom, zoom, center, distance}
   }
 }
 
